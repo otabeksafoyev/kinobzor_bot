@@ -4,15 +4,11 @@ from pymongo import MongoClient
 from flask import Flask
 import threading
 
-# -----------------------------
-#  BOT TOKEN
-# -----------------------------
+
 TOKEN = "7540936261:AAHAtaMMZM81-EyYKJV6lDg84BT0XRiooZ0"
 bot = telebot.TeleBot(TOKEN)
 
-# -----------------------------
-#  KANALLAR (FAQAT BUXORO VA OTHERS)
-# -----------------------------
+
 REGION_CHANNELS = {
     "Buxoro": [
         "@Buxoro_Texnika_savdosi",
@@ -23,19 +19,16 @@ REGION_CHANNELS = {
     ]
 }
 
+# ❗ Faqat username bo'ladi
 UPLOAD_CHANNEL = "safoyev0_0"
 
-# -----------------------------
-#  MONGO
-# -----------------------------
+
 MONGO_URL = "mongodb+srv://safootabekyev_db_user:kKjW0vqmvhPbPzk6@cluster0.pniaa23.mongodb.net/?appName=Cluster0"
 client = MongoClient(MONGO_URL)
 db = client["kinochi_bot"]
 collection = db["videos"]
 
-# -----------------------------
-#  OBUNA TEKSHIRISH
-# -----------------------------
+
 def check_user(user_id, channels):
     for ch in channels:
         try:
@@ -46,9 +39,7 @@ def check_user(user_id, channels):
             return False
     return True
 
-# -----------------------------
-#  OBUNA SO‘RASH
-# -----------------------------
+
 def ask_to_subscribe(chat_id, channels):
     markup = types.InlineKeyboardMarkup()
     for ch in channels:
@@ -56,9 +47,7 @@ def ask_to_subscribe(chat_id, channels):
     markup.add(types.InlineKeyboardButton("Tekshirish", callback_data="check_subscribe"))
     bot.send_message(chat_id, "Botdan foydalanish uchun kanallarga obuna bo‘ling:", reply_markup=markup)
 
-# -----------------------------
-#  /start — VILOYAT TANLASH
-# -----------------------------
+
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = types.InlineKeyboardMarkup()
@@ -66,9 +55,7 @@ def start(message):
     markup.add(types.InlineKeyboardButton("Boshqa viloyat", callback_data="region_others"))
     bot.send_message(message.chat.id, "Qaysi viloyatdan siz?", reply_markup=markup)
 
-# -----------------------------
-#  VILOYAT TANLASH CALLBACK
-# -----------------------------
+
 USER_REGION = {}
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("region_"))
@@ -87,9 +74,7 @@ def region_select(call):
     else:
         ask_to_subscribe(call.message.chat.id, channels)
 
-# -----------------------------
-#  TEKSHIRISH TUGMASI
-# -----------------------------
+
 @bot.callback_query_handler(func=lambda call: call.data == "check_subscribe")
 def check_subscribe(call):
     user_id = call.from_user.id
@@ -101,9 +86,50 @@ def check_subscribe(call):
     else:
         bot.send_message(call.message.chat.id, "Hali ham barcha kanallarga obuna bo‘lmagansiz!")
 
-# -----------------------------
-#  VIDEO QIDIRISH
-# -----------------------------
+
+
+# ---------------------------------------------------------
+# 🔥 KANALDAN AVTO SAQLASH — FAQAT SHU QO‘SHILDI
+# ---------------------------------------------------------
+@bot.channel_post_handler(content_types=['video'])
+def save_from_channel(message):
+    # faqat ushbu kanaldan qabul qilinadi
+    if message.chat.username != UPLOAD_CHANNEL:
+        return
+
+    if not message.caption:
+        return
+
+    caption = message.caption.split("\n")
+
+    # Kodni olish
+    kod = caption[0].replace("Kod:", "").strip() if caption else None
+    kino_nomi = None
+
+    # Kino nomini topish
+    for line in caption:
+        if "kino nomi" in line.lower():
+            kino_nomi = line.split(":", 1)[1].strip()
+
+    if not kod or not kino_nomi:
+        return
+
+    # Botga mos format
+    new_caption = f"Kod: {kod}\nKino nomi: {kino_nomi}\nBot nomi: @kinobozor_bot"
+
+    collection.insert_one({
+        "kod": kod,
+        "file_id": message.video.file_id,
+        "caption": new_caption
+    })
+
+    bot.send_message(message.chat.id, f"🎬 Kod {kod} saqlandi!")
+
+
+
+# ---------------------------------------------------------
+# 🔥 FOYDALANUVCHI KOD YUBORGANDA QIDIRISH
+# ---------------------------------------------------------
 @bot.message_handler(func=lambda msg: msg.text.isdigit())
 def search_video(message):
     user_id = message.from_user.id
@@ -114,8 +140,9 @@ def search_video(message):
         ask_to_subscribe(message.chat.id, channels)
         return
 
-    kod = f"Kod: {message.text}"
-    video = collection.find_one({"caption": {"$regex": f"^{kod}", "$options": "m"}})
+    kod = message.text.strip()
+
+    video = collection.find_one({"kod": kod})
 
     if video:
         bot.send_video(
@@ -126,9 +153,8 @@ def search_video(message):
     else:
         bot.send_message(message.chat.id, "❌ Bu kod bo‘yicha video topilmadi!")
 
-# -----------------------------
-# FLASK VA BOT
-# -----------------------------
+
+
 app = Flask(__name__)
 
 @app.route("/")
