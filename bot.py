@@ -11,15 +11,11 @@ TOKEN = "7540936261:AAHAtaMMZM81-EyYKJV6lDg84BT0XRiooZ0"
 bot = telebot.TeleBot(TOKEN)
 
 # -----------------------------
-#  KANALLAR VILOYATLARGA KO‘RA
+#  KANALLAR (FAQAT BUXORO VA OTHERS)
 # -----------------------------
 REGION_CHANNELS = {
     "Buxoro": [
         "@Buxoro_Texnika_savdosi",
-        "@kinobozr"
-    ],
-    "Samarqand": [
-        "@samarqand032",
         "@kinobozr"
     ],
     "others": [
@@ -67,14 +63,12 @@ def ask_to_subscribe(chat_id, channels):
 def start(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Buxoro", callback_data="region_Buxoro"))
-    markup.add(types.InlineKeyboardButton("Samarqand", callback_data="region_Samarqand"))
     markup.add(types.InlineKeyboardButton("Boshqa viloyat", callback_data="region_others"))
     bot.send_message(message.chat.id, "Qaysi viloyatdan siz?", reply_markup=markup)
 
 # -----------------------------
 #  VILOYAT TANLASH CALLBACK
 # -----------------------------
-# Foydalanuvchining viloyat kanalini sessionda saqlash uchun oddiy dict
 USER_REGION = {}
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("region_"))
@@ -82,15 +76,12 @@ def region_select(call):
     user_id = call.from_user.id
     region_key = call.data.replace("region_", "")
 
-    # Viloyatni saqlash
     USER_REGION[user_id] = region_key
 
     bot.answer_callback_query(call.id, f"{region_key} tanlandi!")
 
-    # Kanal ro‘yxatini olish
     channels = REGION_CHANNELS.get(region_key, REGION_CHANNELS["others"])
 
-    # Obuna tekshirish
     if check_user(user_id, channels):
         bot.send_message(call.message.chat.id, "Siz botdan foydalanishingiz mumkin❗️")
     else:
@@ -119,7 +110,6 @@ def search_video(message):
     region_key = USER_REGION.get(user_id, "others")
     channels = REGION_CHANNELS.get(region_key, REGION_CHANNELS["others"])
 
-    # Obuna tekshirish
     if not check_user(user_id, channels):
         ask_to_subscribe(message.chat.id, channels)
         return
