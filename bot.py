@@ -151,7 +151,7 @@ def search_video(message):
             caption=video["caption"]
         )
     else:
-        bot.send_message(message.chat.id, "❌ Bu kod bo‘yicha video topilmadi!")
+        bot.send_message(message.chat.id, "❌ Bu kod bo'yicha video topilmadi!")
 
 
 
